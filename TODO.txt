@@ -1,0 +1,5 @@
+1. Make all requests for multiple items to be looped, so that they fetch all pages of results. Currently we trust that results would be <= 1000
+2. Secure against folders with " : " inside their names
+3. Case sensitivity issue (NS File Cabinet has case-sensitive uniqueness of names, while Windows has case-insensitive. Also, searches by name are case-insensitive.
+4. Flag for overwriting.
+5. Flag for recursion.

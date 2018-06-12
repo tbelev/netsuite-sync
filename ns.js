@@ -3,6 +3,7 @@
 // this is the console program
 
 var fileCabinet = require("./lib/FileCabinet");
+var folderSync = require("./lib/FolderSyncLogic");
 var program = require("commander");
 var chalk = require('chalk');
 var secureConfig = require("./lib/SecureConfigFile");
@@ -24,6 +25,9 @@ program
     .option('-d, --desc description', "Description for uploaded file")
     .option('-f, --folder [value]',
         "Overrides the internal ID of the target folder for the uploaded file")
+    .option('-p, --passphrase [value]', "Provide passphrase for the encrypted settings file")
+    .option('--config-path <path>', 
+        "Indicate a path where to look for the configuration files. By default, looks in the current directory")
     .option('-e, --encrypt-config', "encrypts the config file using the NSPW environment variable (must" +
         " be set prior) as passphrase")
     .option('--decrypt-config', "decrypts the config file and displays the plaintext")
@@ -31,6 +35,8 @@ program
         " then fill out and run the encrypt (-e) command")
     .option('-g, --gen-config', "Contacts NetSuite for config information and generates a config file so you don't " +
         "have to populate the config file entirely by hand")
+    .option('--pull-folder <name>', "Pull folder with the specified name form the NetSuite file cabinet")
+    .option('-v, --verbose', "Show verbose output")
     .on('--help', function () {
         console.log('Examples:');
         console.log();
@@ -46,7 +52,7 @@ program
     .parse(process.argv);
 
 if (program.decryptConfig) {
-    var plaintext = secureConfig.decryptFile(CONFIG_FILE + ".enc");
+    var plaintext = secureConfig.decryptFile(CONFIG_FILE + ".enc", program.passphrase);
     console.log(plaintext);
     process.exit();
 }
@@ -59,13 +65,23 @@ if (program.encryptConfig) {
     process.exit();
 }
 
+if (program.pullFolder) {
+    folderSync.pullFolder(program.pullFolder, true, program.configPath, program.passphrase);
+}
+
 if (program.upload) {
-    fileCabinet.postFile(program.upload, program.desc, program.folder, function (err, resp) {
+    if (program.verbose) {
+        console.log("File to upload:", program.upload);
+        console.log("File description:", program.desc);
+        console.log("Explicit target folder:", program.folder);
+        console.log("Explicit config file:", program.configPath);
+    }
+    fileCabinet.postFile(program.upload, program.desc, program.folder, program.configPath, program.passphrase, function (err, resp) {
 
         if (err) throw err;
 
         debug('response from NS cabinet add: %s', JSON.stringify(resp))
-
+		console.log('response from NS cabinet add: ', JSON.stringify(resp));
         var wr = resp.Envelope.Body.addResponse.writeResponse;
         if (wr.status.isSuccess == "true") {
             var successMsg = "File uploaded successfully as internalid " + wr.baseRef.internalId;
@@ -110,7 +126,7 @@ if (program.genConfig) {
     var folder = readlineSync.question('Destination Folder Id:');
     var isSandbox = readlineSync.keyInYN('Sandbox Account?');
 
-    fileCabinet.discoverConfigInfo(username, password, isSandbox)
+    fileCabinet.discoverConfigInfo(username, encodeURIComponent(password), isSandbox)
         .then(function (result) {
             debug('Received body %s', result.body);
             var accountInfo = promptUserForAccountSelection(JSON.parse(result.body));
@@ -128,7 +144,7 @@ if (program.genConfig) {
         .then(function (configData) {
             fs.writeFileSync(CONFIG_FILE, configData);
             console.log('wrote ' + CONFIG_FILE)
-            var out = secureConfig.encryptFile(CONFIG_FILE);
+            var out = secureConfig.encryptFile(CONFIG_FILE, program.passphrase);
             console.log("wrote " + out);
             console.log("don't forget to delete " + CONFIG_FILE + " after you've tested it's working!")
         })

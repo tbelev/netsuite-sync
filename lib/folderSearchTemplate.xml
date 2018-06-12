@@ -1,0 +1,17 @@
+<platformMsgs:search 
+    xmlns:filecab="urn:filecabinet_2014_2.documents.webservices.netsuite.com"
+    xmlns:common="urn:common_2014_2.platform.webservices.netsuite.com">
+    <platformMsgs:searchRecord xsi:type="filecab:FolderSearch">
+        <% if (folderName || parentIds.length > 0 || isTopLevel) { %><filecab:basic><% if (folderName) { %>
+            <common:name operator="is">
+                <platformCore:searchValue><%=folderName%></platformCore:searchValue>
+            </common:name><% }  %><% if (parentIds.length > 0 && parentIds[0]) { %>
+            <common:parent operator="anyOf"><% for(var i = 0; i < parentIds.length; i += 1) { %>
+                <platformCore:searchValue type="folder" internalId="<%=parentIds[i]%>"/><% }  %>
+            </common:parent><% }  %><% if (isTopLevel === true || isTopLevel === false) { %>
+            <common:isTopLevel>
+                <platformCore:searchValue><%=isTopLevel%></platformCore:searchValue>
+            </common:isTopLevel><% }  %>
+        </filecab:basic><% }  %>
+    </platformMsgs:searchRecord>
+</platformMsgs:search>

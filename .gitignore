@@ -4,3 +4,4 @@ test/**/**
 NetSuiteConfig.js*
 .idea/
 node_modules
+FolderSyncConfig.json

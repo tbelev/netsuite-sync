@@ -1,0 +1,11 @@
+<platformMsgs:search 
+    xmlns:filecab="urn:filecabinet_2014_2.documents.webservices.netsuite.com"
+    xmlns:common="urn:common_2014_2.platform.webservices.netsuite.com">
+    <platformMsgs:searchRecord xsi:type="filecab:FileSearch">
+        <% if (folderId) { %><filecab:basic>
+            <common:folder operator="anyOf">
+                <platformCore:searchValue type="folder" internalId="<%=folderId%>"/>
+            </common:folder>
+        </filecab:basic><% }  %>
+    </platformMsgs:searchRecord>
+</platformMsgs:search>
