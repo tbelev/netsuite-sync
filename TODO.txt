@@ -3,3 +3,9 @@
 3. Case sensitivity issue (NS File Cabinet has case-sensitive uniqueness of names, while Windows has case-insensitive. Also, searches by name are case-insensitive.
 4. Flag for overwriting.
 5. Flag for recursion.
+6. Update readme file
+7. Add upward sync functionality !!!
+8. Consider what we can do on file rename/move.
+9. Check for changes and upload only changed files. (by size, by content)
+10. Differentiate configuration for PROD and for SANDBOX (separate config file?)
+11. Describe specifying config encryption password in command line with -p or --passphrase

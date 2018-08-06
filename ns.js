@@ -36,6 +36,7 @@ program
     .option('-g, --gen-config', "Contacts NetSuite for config information and generates a config file so you don't " +
         "have to populate the config file entirely by hand")
     .option('--pull-folder <name>', "Pull folder with the specified name form the NetSuite file cabinet")
+    .option('--set-file-cabinet-root [path]', "Set the root file cabinet folder. Name is not required. If a path is not specified, the program would use the FileCabinet subfolder of the current folder.")
     .option('-v, --verbose', "Show verbose output")
     .on('--help', function () {
         console.log('Examples:');
@@ -65,7 +66,24 @@ if (program.encryptConfig) {
     process.exit();
 }
 
+if (program.setFileCabinetRoot) {
+    
+    if (!program.configPath) {
+        console.log(chalk.red("Please provide config path"));
+        process.exit();
+    }
+    folderSync.setFileCabinetRoot(program.configPath, program.setFileCabinetRoot !== true ? program.setFileCabinetRoot : null);
+}
+
 if (program.pullFolder) {
+    if (!program.configPath) {
+        console.log(chalk.red("Please provide config path"));
+        process.exit();
+    }
+    if (!program.passphrase) {
+        console.log(chalk.red("Please provide a passphrase"));
+        process.exit();
+    }
     folderSync.pullFolder(program.pullFolder, true, program.configPath, program.passphrase);
 }
 
@@ -117,6 +135,10 @@ function createConfig(params) {
 }
 
 if (program.genConfig) {
+    if (!program.passphrase) {
+        console.log(chalk.red("Please provide a passphrase"));
+        process.exit();
+    }
     console.log("Generating " + CONFIG_FILE + "...")
     console.log('Enter credentials to select account/role to use..')
     var username = readlineSync.question('Account login email:');
