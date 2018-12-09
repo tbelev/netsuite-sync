@@ -26,18 +26,17 @@ program
     .option('-f, --folder [value]',
         "Overrides the internal ID of the target folder for the uploaded file")
     .option('-p, --passphrase [value]', "Provide passphrase for the encrypted settings file")
-    .option('--config-path <path>', 
-        "Indicate a path where to look for the configuration files. By default, looks in the current directory")
     .option('-e, --encrypt-config', "encrypts the config file using the NSPW environment variable (must" +
         " be set prior) as passphrase")
     .option('--decrypt-config', "decrypts the config file and displays the plaintext")
-    .option('-c, --create-config', "displays a sample generic configuration which you save as " + CONFIG_FILE +
+    .option('-c, --create-config', "displays a sample generic configuration which you save as " + path.resolve(__dirname, CONFIG_FILE) +
         " then fill out and run the encrypt (-e) command")
     .option('-g, --gen-config', "Contacts NetSuite for config information and generates a config file so you don't " +
         "have to populate the config file entirely by hand")
     .option('--pull-folder <name>', "Pull folder with the specified name form the NetSuite file cabinet")
     .option('--set-file-cabinet-root [path]', "Set the root file cabinet folder. Name is not required. If a path is not specified, the program would use the FileCabinet subfolder of the current folder.")
     .option('-v, --verbose', "Show verbose output")
+    .option('--test', "test stuff")
     .on('--help', function () {
         console.log('Examples:');
         console.log();
@@ -53,7 +52,7 @@ program
     .parse(process.argv);
 
 if (program.decryptConfig) {
-    var plaintext = secureConfig.decryptFile(CONFIG_FILE + ".enc", program.passphrase);
+    var plaintext = secureConfig.decryptFile(path.resolve(__dirname, CONFIG_FILE) + ".enc", program.passphrase);
     console.log(plaintext);
     process.exit();
 }
@@ -61,30 +60,22 @@ if (program.decryptConfig) {
 
 if (program.encryptConfig) {
     // only just prior to encrypt should the NetSuiteConfig.js file be cleartext
-    var out = secureConfig.encryptFile(CONFIG_FILE);
+    var out = secureConfig.encryptFile(path.resolve(__dirname, CONFIG_FILE));
     console.log("wrote file:" + out);
     process.exit();
 }
 
 if (program.setFileCabinetRoot) {
     
-    if (!program.configPath) {
-        console.log(chalk.red("Please provide config path"));
-        process.exit();
-    }
-    folderSync.setFileCabinetRoot(program.configPath, program.setFileCabinetRoot !== true ? program.setFileCabinetRoot : null);
+    folderSync.setFileCabinetRoot(__dirname, program.setFileCabinetRoot !== true ? program.setFileCabinetRoot : null);
 }
 
 if (program.pullFolder) {
-    if (!program.configPath) {
-        console.log(chalk.red("Please provide config path"));
-        process.exit();
-    }
     if (!program.passphrase) {
         console.log(chalk.red("Please provide a passphrase"));
         process.exit();
     }
-    folderSync.pullFolder(program.pullFolder, true, program.configPath, program.passphrase);
+    folderSync.pullFolder(program.pullFolder, true, __dirname, program.passphrase);
 }
 
 if (program.upload) {
@@ -92,9 +83,8 @@ if (program.upload) {
         console.log("File to upload:", program.upload);
         console.log("File description:", program.desc);
         console.log("Explicit target folder:", program.folder);
-        console.log("Explicit config file:", program.configPath);
     }
-    fileCabinet.postFile(program.upload, program.desc, program.folder, program.configPath, program.passphrase, function (err, resp) {
+    fileCabinet.postFile(program.upload, program.desc, program.folder, __dirname, program.passphrase, function (err, resp) {
 
         if (err) throw err;
 
@@ -134,21 +124,25 @@ function createConfig(params) {
     });
 }
 
+if (program.test) {
+    fileCabinet.test();
+}
+
 if (program.genConfig) {
     if (!program.passphrase) {
         console.log(chalk.red("Please provide a passphrase"));
         process.exit();
     }
-    console.log("Generating " + CONFIG_FILE + "...")
+    console.log("Generating " + path.resolve(__dirname, CONFIG_FILE) + "...")
     console.log('Enter credentials to select account/role to use..')
     var username = readlineSync.question('Account login email:');
     var password = readlineSync.question('Account login password:');
     console.log('Enter the internal id of the folder to which files will be saved. If you do not set this it will' +
         ' default to zero and you must edit the config file manually to set the folder id value');
     var folder = readlineSync.question('Destination Folder Id:');
-    var isSandbox = readlineSync.keyInYN('Sandbox Account?');
+    //var isSandbox = readlineSync.keyInYN('Sandbox Account?');
 
-    fileCabinet.discoverConfigInfo(username, encodeURIComponent(password), isSandbox)
+    fileCabinet.discoverConfigInfo(username, encodeURIComponent(password))
         .then(function (result) {
             debug('Received body %s', result.body);
             var accountInfo = promptUserForAccountSelection(JSON.parse(result.body));
@@ -164,11 +158,12 @@ if (program.genConfig) {
             })
         })
         .then(function (configData) {
-            fs.writeFileSync(CONFIG_FILE, configData);
-            console.log('wrote ' + CONFIG_FILE)
-            var out = secureConfig.encryptFile(CONFIG_FILE, program.passphrase);
+            var configFile = path.resolve(__dirname, CONFIG_FILE);
+            fs.writeFileSync(configFile, configData);
+            console.log('wrote ' + configFile)
+            var out = secureConfig.encryptFile(configFile, program.passphrase);
             console.log("wrote " + out);
-            console.log("don't forget to delete " + CONFIG_FILE + " after you've tested it's working!")
+            console.log("don't forget to delete " + configFile + " after you've tested it's working!")
         })
         .catch(console.error)
 }
@@ -184,7 +179,7 @@ function promptUserForAccountSelection(info) {
 
     // create <Account Name> (Role Name) labels for the questions
     var questions = _(info)
-        .map(function (r) { return r.account.name + ' (' + r.role.name + ')' })
+        .map(function (r) { return r.account.name + ' (' + r.role.name + ')' + ' [' + r.account.type + ']' })
         .chunk(PAGE_SIZE)
         .forEach(function (q, index) {
         // detect being on 'last page' of results
